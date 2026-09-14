@@ -58,13 +58,12 @@ WHAT THIS DEMONSTRATES
 CONFIGURATION
 -------------
 All environment-specific values are read from environment variables.
-Copy `.env.example` to `.env`, fill in your own values, and load them
-before running (e.g. with `python-dotenv`), or export them in your
-shell.
+Copy `.env.example` to `.env` and fill in your own values -- it is
+loaded automatically on startup via `python-dotenv`.
 
 REQUIREMENTS
 ------------
-  pip install pywin32 pywinauto python-dotenv --break-system-packages
+  pip install -r requirements.txt
 
 Requires an already-open, logged-in SAP GUI session with GUI Scripting
 enabled (Options > Accessibility & Scripting > Scripting), and a
@@ -77,7 +76,10 @@ import os
 import time
 
 import win32com.client as win32
+from dotenv import load_dotenv
 from pywinauto import Application
+
+load_dotenv()
 
 
 # =============================================================================
@@ -104,8 +106,19 @@ DOCUMENT_ARCHIVE_ROOT = os.environ.get(
 
 SOURCE_EXPORT_FOLDER = os.environ.get("SOURCE_EXPORT_FOLDER", r"C:\temp\sap_document_lists")
 
-SAP_LIST_FAVORITE_NODE = os.environ.get("SAP_LIST_FAVORITE_NODE", "F00001")
 SAP_DOCUMENT_FAVORITE_NODE = os.environ.get("SAP_DOCUMENT_FAVORITE_NODE", "F00002")
+
+# Column layout of the tab-delimited SAP export (0-indexed). Adjust these
+# if your own export's field order/count differs -- this is the one part
+# of the script that is tied to a specific SAP list layout rather than
+# being generic.
+COL_COMPANY = 1
+COL_DOC_NUMBER = 3
+COL_DOC_YEAR = 4
+COL_DOC_PERIOD = 5
+COL_PREPARER = 11
+COL_CANCELLATION_REF = 20
+MIN_EXPECTED_COLUMNS = 12
 
 
 # =============================================================================
@@ -127,7 +140,10 @@ def get_source_records() -> dict:
     the cancellation-reference column is empty (a non-empty value
     means the document was voided and doesn't need archiving).
     """
-    files = [f for f in glob.glob(os.path.join(SOURCE_EXPORT_FOLDER, "*")) if os.path.isfile(f)]
+    files = [
+        f for f in glob.glob(os.path.join(SOURCE_EXPORT_FOLDER, "*"))
+        if os.path.isfile(f) and not os.path.basename(f).startswith("report_")
+    ]
     if not files:
         raise RuntimeError(f"No files found in {SOURCE_EXPORT_FOLDER}")
 
@@ -143,15 +159,18 @@ def get_source_records() -> dict:
             with open(file_path, encoding="latin-1") as f:
                 for line in f:
                     parts = line.split("\t")
-                    if len(parts) < 12:
+                    if len(parts) < MIN_EXPECTED_COLUMNS:
                         continue
 
-                    company = parts[1].strip()
-                    doc_number = parts[3].strip()
-                    doc_year = parts[4].strip()
-                    doc_period = parts[5].strip()
-                    preparer = parts[11].strip()
-                    cancellation_ref = parts[20].strip() if len(parts) > 20 else ""
+                    company = parts[COL_COMPANY].strip()
+                    doc_number = parts[COL_DOC_NUMBER].strip()
+                    doc_year = parts[COL_DOC_YEAR].strip()
+                    doc_period = parts[COL_DOC_PERIOD].strip()
+                    preparer = parts[COL_PREPARER].strip()
+                    cancellation_ref = (
+                        parts[COL_CANCELLATION_REF].strip()
+                        if len(parts) > COL_CANCELLATION_REF else ""
+                    )
 
                     if company != COMPANY_CODE or not doc_number.isdigit():
                         continue
@@ -306,6 +325,19 @@ def open_document_and_print(session, doc_number: str) -> None:
 # STEP 4: Write the path into the native "Save As" dialog
 # =============================================================================
 
+# pywinauto's type_keys() treats these characters as modifier/special-key
+# markers (e.g. "%" = Alt, "^" = Ctrl, "~" = Enter) rather than literal
+# text. Wrapping each one in its own {...} escapes it back to a literal
+# keystroke -- without this, a company code or archive path that happens
+# to contain one of them would silently type the wrong thing into the
+# save dialog instead of raising an error.
+_TYPE_KEYS_SPECIAL_CHARS = "+^%~(){}"
+
+
+def _escape_for_type_keys(text: str) -> str:
+    return "".join(f"{{{ch}}}" if ch in _TYPE_KEYS_SPECIAL_CHARS else ch for ch in text)
+
+
 def save_pdf(destination_path: str) -> None:
     """
     Writes the full destination path into Windows' native "Save Print
@@ -346,7 +378,7 @@ def save_pdf(destination_path: str) -> None:
 
     dlg.type_keys("^a", pause=0.1)
     dlg.type_keys("{DEL}", pause=0.1)
-    dlg.type_keys(destination_path, with_spaces=True, pause=0.01)
+    dlg.type_keys(_escape_for_type_keys(destination_path), with_spaces=True, pause=0.01)
     time.sleep(0.3)
 
     dlg.type_keys("~", pause=0.1)  # Enter -> default "Save" button

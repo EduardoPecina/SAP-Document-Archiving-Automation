@@ -77,7 +77,7 @@ location, so its design treats that as the primary constraint:
 ## Requirements
 
 ```
-pip install pywin32 pywinauto python-dotenv
+pip install -r requirements.txt
 ```
 
 Requires an already-open, logged-in SAP GUI session with GUI
@@ -87,9 +87,10 @@ and a printer named "Microsoft Print to PDF" available in Windows.
 ## Configuration
 
 Copy `.env.example` to `.env` and fill in your own values (network
-path, SAP company code, favorite node IDs, etc.), then load them
-before running — e.g. with `python-dotenv`, or by exporting them in
-your shell.
+path, SAP company code, favorite node ID, etc. — see the comments in
+`.env.example` for what each one means and where to find it). The
+script loads `.env` automatically on startup via `python-dotenv` — no
+manual exporting needed.
 
 ## Usage
 
