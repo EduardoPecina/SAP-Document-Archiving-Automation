@@ -87,9 +87,10 @@ and a printer named "Microsoft Print to PDF" available in Windows.
 ## Configuration
 
 Copy `.env.example` to `.env` and fill in your own values (network
-path, SAP company code, favorite node IDs, etc.). The script loads
-`.env` automatically on startup via `python-dotenv` — no manual
-exporting needed.
+path, SAP company code, favorite node ID, etc. — see the comments in
+`.env.example` for what each one means and where to find it). The
+script loads `.env` automatically on startup via `python-dotenv` — no
+manual exporting needed.
 
 ## Usage
 
