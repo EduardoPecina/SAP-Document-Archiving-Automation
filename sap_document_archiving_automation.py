@@ -58,13 +58,12 @@ WHAT THIS DEMONSTRATES
 CONFIGURATION
 -------------
 All environment-specific values are read from environment variables.
-Copy `.env.example` to `.env`, fill in your own values, and load them
-before running (e.g. with `python-dotenv`), or export them in your
-shell.
+Copy `.env.example` to `.env` and fill in your own values -- it is
+loaded automatically on startup via `python-dotenv`.
 
 REQUIREMENTS
 ------------
-  pip install pywin32 pywinauto python-dotenv --break-system-packages
+  pip install -r requirements.txt
 
 Requires an already-open, logged-in SAP GUI session with GUI Scripting
 enabled (Options > Accessibility & Scripting > Scripting), and a
@@ -77,7 +76,10 @@ import os
 import time
 
 import win32com.client as win32
+from dotenv import load_dotenv
 from pywinauto import Application
+
+load_dotenv()
 
 
 # =============================================================================
