@@ -370,8 +370,14 @@ def save_pdf(destination_path: str) -> None:
     time.sleep(0.3)
 
     if backend_used == "uia":
-        filename_field = dlg.child_window(title="File name:", control_type="ComboBox")
-        filename_field.set_focus()
+        try:
+            # "File name:" is the English-locale label for this control.
+            # On a non-English Windows install it's labeled differently
+            # and this lookup raises, so fall back to the locale-
+            # independent Alt+N shortcut instead of crashing.
+            dlg.child_window(title="File name:", control_type="ComboBox").set_focus()
+        except Exception:
+            dlg.type_keys("%n", pause=0.2)
     else:
         dlg.type_keys("%n", pause=0.2)  # Alt+N jumps to the filename field
     time.sleep(0.3)
